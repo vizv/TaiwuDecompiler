@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using TaiwuDecompiler.Utilities;
 
 namespace TaiwuDecompiler
@@ -14,14 +15,26 @@ namespace TaiwuDecompiler
         private const int STEAM_GAME_ID = 838350;
 
         /// <summary>
+        /// 原始的 Assembly 文件名。
+        /// </summary>
+        private const string ORIGINAL_FILENAME = "Assembly-CSharp.dll";
+
+        /// <summary>
+        /// 脱壳后的 Assembly 文件名。
+        /// </summary>
+        private const string UNPACKED_FILENAME = "Assembly-CSharp-{0}.dll";
+
+        /// <summary>
         /// 反编译器入口方法。
         /// </summary>
         /// <param name="args">参数列表（未使用）</param>
         static void Main(string[] args)
         {
             string gamePath = getSteamGameInstallLocation(STEAM_GAME_ID);
-            Console.Error.WriteLine(string.Format("Game Path: {0}", gamePath)); // FIXME: Debug
-            // TODO: 计算 Assembly-CSharp.dll 的 SHA256 值
+            Console.Error.WriteLine(string.Format("游戏路径: {0}", gamePath)); // FIXME: Debug
+            string originalAssemblyPath = getAssemblyPath(gamePath);
+            string originalAssemblyHash = HashUtility.GetFileSHA256(originalAssemblyPath);
+            Console.Error.WriteLine(string.Format("Assembly 散列: {0}", originalAssemblyHash)); // FIXME: Debug
             // TODO: 脱壳 Assembly-CSharp.dll，并存至 Assembly-CSharp-Unpacked-<SHA256>.dll
             // TODO: 调用 dnspy（使用参数：--spaces 2 --no-tokens）去反编译 Assembly-CSharp-Unpacked-<SHA256>.dll，并输出到临时目录
             // TODO: 清理非游戏文件
@@ -40,6 +53,22 @@ namespace TaiwuDecompiler
 
             string installLocation = RegistryUtility.LocalMachine.GetString(steamGameRegistryKey, steamGameInstallLocationName);
             return installLocation;
+        }
+
+        /// <summary>
+        /// 获取 Assembly 的路径。
+        /// </summary>
+        /// <param name="baseDirectory">搜索基础路径</param>
+        /// <returns>原始 Assembly 的路径</returns>
+        private static string getAssemblyPath(string baseDirectory)
+        {
+            const string MANAGED_DIR = "Managed";
+            string[] matches = Directory.GetDirectories(baseDirectory, MANAGED_DIR, SearchOption.AllDirectories);
+            if (matches.Length != 1) {
+                string message = matches.Length == 0 ? "没有找到 {0} 目录" : "找到多个 {0} 目录";
+                throw new Exception(string.Format(message, MANAGED_DIR));
+            }
+            return Path.Combine(matches[0], ORIGINAL_FILENAME);
         }
     }
 }
