@@ -1,0 +1,4 @@
+[submodule "ILSpy"]
+	path = ILSpy
+	url = https://github.com/vizv/ILSpy.git
+	branch = taiwu-decompiler
