@@ -35,25 +35,28 @@ namespace TaiwuDecompiler
         static void Main(string[] args)
         {
             string gamePath = GetSteamGameInstallLocation(STEAM_GAME_ID);
-            Console.WriteLine(string.Format("使用游戏路径: {0}", gamePath));
+            Console.WriteLine($"使用游戏路径: {gamePath}");
 
             string originalAssemblyPath = GetAssemblyPath(gamePath);
             string originalAssemblyHash = HashUtility.GetFileSHA256(originalAssemblyPath);
-            Console.WriteLine(string.Format("游戏 Assembly 散列: {0}", originalAssemblyHash));
+            Console.WriteLine($"游戏 Assembly 散列: {originalAssemblyHash}");
 
             string monoLibraryPath = GetMonoPath(gamePath);
             byte[] unpackedAssemblyData = AssemblyUtility.LoadImage(monoLibraryPath, originalAssemblyPath);
             string UNPACKED_FILENAME = string.Format(UNPACKED_FILENAME_TEMPLATE, originalAssemblyHash);
             string unpackedAssemblyPath = originalAssemblyPath.Replace(ORIGINAL_FILENAME, UNPACKED_FILENAME);
-            Console.WriteLine(string.Format("写入脱壳后的 Assembly 到: {0}", unpackedAssemblyPath));
+            Console.WriteLine($"写入脱壳后的 Assembly 到: {unpackedAssemblyPath}");
             File.WriteAllBytes(unpackedAssemblyPath, unpackedAssemblyData);
 
-            string decompiledDirectory = Path.Combine(gamePath, "TaiwuDecompiler-" + UNPACKED_FILENAME);
+            string decompiledDirectory = Path.Combine(Directory.GetCurrentDirectory(), "TaiwuDecompiler-" + UNPACKED_FILENAME);
             Console.WriteLine("\n开始反编译……");
             DecompileAssembly(unpackedAssemblyPath, decompiledDirectory);
 
-            // TODO: 清理非游戏文件
-            Console.WriteLine(string.Format("完成！反编译源码已保存至：{0}", decompiledDirectory));
+            // FIXME: 未来重写 WholeProjectDecompiler，导出合适的工程文件。
+            Console.WriteLine("\n执行清理……");
+            CleanupSource(decompiledDirectory);
+
+            Console.WriteLine($"完成！反编译源码已保存至：{decompiledDirectory}");
             Console.WriteLine("按任意键退出……");
             Console.ReadKey();
         }
@@ -121,6 +124,20 @@ namespace TaiwuDecompiler
             var module = new PEFile(assemblyPath);
             decompiler.AssemblyResolver = new UniversalAssemblyResolver(assemblyPath, false, module.Reader.DetectTargetFrameworkId(assemblyPath));
             decompiler.DecompileProject(module, outputPath);
+        }
+
+        /// <summary>
+        /// 清理大部分项目文件，仅保留跟游戏相关的文件。
+        /// </summary>
+        /// <param name="sourceDirectory">源码目录</param>
+        private static void CleanupSource(string sourceDirectory)
+        {
+            string[] entries = Directory.GetFileSystemEntries(sourceDirectory);
+            foreach (var entry in entries)
+            {
+                if (Directory.Exists(entry)) Directory.Delete(entry, true);
+                if (File.Exists(entry) && entry.EndsWith(".csproj")) File.Delete(entry);
+            }
         }
     }
 }
