@@ -43,39 +43,58 @@ namespace TaiwuDecompiler
         /// <param name="args">参数列表（未使用）</param>
         static void Main(string[] args)
         {
-            (string gamePath, string originalAssemblyPath, string monoLibraryPath) = GetSteamGameInstallation(STEAM_GAME_ID);
-
-            if (gamePath == null)
+            try
             {
-                Console.Error.WriteLine("错误：搜索游戏路径失败，请将反编译器目录拷贝至游戏路径后重试。");
-                Environment.Exit(1);
+                (string gamePath, string originalAssemblyPath, string monoLibraryPath) = GetSteamGameInstallation(STEAM_GAME_ID);
+
+                if (gamePath == null)
+                {
+                    Console.Error.WriteLine("错误：搜索游戏路径失败，请将反编译器目录拷贝至游戏路径后重试。");
+                    Exit(1);
+                }
+
+                Console.WriteLine($"使用游戏路径: {gamePath}");
+                Console.WriteLine($"使用 Assembly: {originalAssemblyPath}");
+                Console.WriteLine($"使用 Mono 库: {monoLibraryPath}");
+                Console.WriteLine();
+
+                string originalAssemblyHash = HashUtility.GetFileSHA256(originalAssemblyPath);
+                Console.WriteLine($"游戏 Assembly 散列: {originalAssemblyHash}");
+
+                byte[] unpackedAssemblyData = AssemblyUtility.LoadImage(monoLibraryPath, originalAssemblyPath);
+                string UNPACKED_FILENAME = string.Format(UNPACKED_FILENAME_TEMPLATE, originalAssemblyHash);
+                string unpackedAssemblyPath = originalAssemblyPath.Replace(ORIGINAL_FILENAME, UNPACKED_FILENAME);
+                Console.WriteLine($"写入脱壳后的 Assembly 到: {unpackedAssemblyPath}");
+                File.WriteAllBytes(unpackedAssemblyPath, unpackedAssemblyData);
+
+                string decompiledDirectory = Path.Combine(Directory.GetCurrentDirectory(), "TaiwuDecompiler-" + UNPACKED_FILENAME);
+                Console.WriteLine("\n开始反编译……");
+                DecompileAssembly(unpackedAssemblyPath, decompiledDirectory);
+
+                // FIXME: 未来重写 WholeProjectDecompiler，导出合适的工程文件。
+                Console.WriteLine("\n执行清理……");
+                CleanupSource(decompiledDirectory);
+
+                Console.WriteLine($"完成！反编译源码已保存至：{decompiledDirectory}");
+                Exit();
             }
+            catch (Exception error)
+            {
+                Console.Error.WriteLine($"错误：未处理的错误 - {error.Message}");
+                Console.Error.WriteLine("报告错误时请附上下列堆栈跟踪截图：");
+                Console.Error.WriteLine(error.StackTrace);
+                Exit(1);
+            }
+        }
 
-            Console.WriteLine($"使用游戏路径: {gamePath}");
-            Console.WriteLine($"使用 Assembly: {originalAssemblyPath}");
-            Console.WriteLine($"使用 Mono 库: {monoLibraryPath}");
-            Console.WriteLine();
-
-            string originalAssemblyHash = HashUtility.GetFileSHA256(originalAssemblyPath);
-            Console.WriteLine($"游戏 Assembly 散列: {originalAssemblyHash}");
-
-            byte[] unpackedAssemblyData = AssemblyUtility.LoadImage(monoLibraryPath, originalAssemblyPath);
-            string UNPACKED_FILENAME = string.Format(UNPACKED_FILENAME_TEMPLATE, originalAssemblyHash);
-            string unpackedAssemblyPath = originalAssemblyPath.Replace(ORIGINAL_FILENAME, UNPACKED_FILENAME);
-            Console.WriteLine($"写入脱壳后的 Assembly 到: {unpackedAssemblyPath}");
-            File.WriteAllBytes(unpackedAssemblyPath, unpackedAssemblyData);
-
-            string decompiledDirectory = Path.Combine(Directory.GetCurrentDirectory(), "TaiwuDecompiler-" + UNPACKED_FILENAME);
-            Console.WriteLine("\n开始反编译……");
-            DecompileAssembly(unpackedAssemblyPath, decompiledDirectory);
-
-            // FIXME: 未来重写 WholeProjectDecompiler，导出合适的工程文件。
-            Console.WriteLine("\n执行清理……");
-            CleanupSource(decompiledDirectory);
-
-            Console.WriteLine($"完成！反编译源码已保存至：{decompiledDirectory}");
+        /// <summary>
+        /// 等待确认并退出程序。
+        /// </summary>
+        /// <param name="code">退出代码（默认为 0）</param>
+        private static void Exit(int code = 0) {
             Console.WriteLine("按任意键退出……");
             Console.ReadKey();
+            Environment.Exit(code);
         }
 
         /// <summary>
