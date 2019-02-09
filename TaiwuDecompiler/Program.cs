@@ -155,6 +155,8 @@ namespace TaiwuDecompiler
         /// <returns>Mono 动态链接库的路径</returns>
         private static string GetMonoPath(string baseDirectory)
         {
+            string mbePath = $@"{baseDirectory}\MonoBleedingEdge\EmbedRuntime\mono-2.0-bdwgc.dll";
+            if (File.Exists(mbePath)) return mbePath;
             return $@"{baseDirectory}\Mono\EmbedRuntime\mono.dll";
         }
 
