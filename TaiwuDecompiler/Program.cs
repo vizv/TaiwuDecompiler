@@ -186,7 +186,6 @@ namespace TaiwuDecompiler
             string[] entries = Directory.GetFileSystemEntries(sourceDirectory);
             foreach (var entry in entries)
             {
-                if (Directory.Exists(entry)) Directory.Delete(entry, true);
                 if (File.Exists(entry) && entry.EndsWith(".csproj")) File.Delete(entry);
             }
         }
